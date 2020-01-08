@@ -330,6 +330,7 @@ void os_initScheduler(void) {
         os_exec(j, DEFAULT_PRIORITY);
       }
     }
+	os_initSchedulingInformation();
 }
 
 /*!
@@ -474,8 +475,12 @@ bool os_kill(ProcessID pid) {//muss ueber os_dispatcher stehen
   if(pid == os_getCurrentProc()) {//Prozess terminiert sich selbst
     criticalSectionCount = 1;//da in os_leaveCriticalSection() dann -1 ausgefuehrt, also 0 wird
     os_leaveCriticalSection();
-    while(os_getCurrentProc() == pid) {//Scheduler sollte jetzt aktiv sein und warten bis naechster Prozess ausgewaehlt wurde
-    }
+    //while(os_getCurrentProc() == pid) {//Scheduler sollte jetzt aktiv sein und warten bis naechster Prozess ausgewaehlt wurde
+    //}
+	/* In the MLFQ test, the scheduler won't be automatically called. 
+	 * To pass the test, we must replace the infinite loop with
+	 * yield, so that the scheduler has a chance to reschedule */
+	os_yield();
     return true;
   }
   os_leaveCriticalSection();
@@ -494,7 +499,11 @@ void os_dispatcher(void) {
 
 void os_yield(void){
 	os_enterCriticalSection();
-	os_processes[os_getCurrentProc()].state = OS_PS_BLOCKED; // So that the process won't be chosen by the scheduler
+	
+	// Make sure that the process is not killing itself
+	if(os_processes[os_getCurrentProc()].state != OS_PS_UNUSED){
+		os_processes[os_getCurrentProc()].state = OS_PS_BLOCKED; // So that the process won't be chosen by the scheduler
+	}
 	
 	// Save everything before temporarily leaving 
 	uint8_t GIEB = SREG >> 7; // Save the GIEB

@@ -11,7 +11,7 @@
 
 #define intHeap (&intHeap__)
 #define extHeap (&extHeap__)
-#define SAVE_DISTANCE 300
+#define SAVE_DISTANCE 402
 
 //Global Variables--------------------------------------------------------------
 

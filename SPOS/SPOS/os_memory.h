@@ -82,4 +82,39 @@ void os_setHighNibble(Heap const* heap, MemAddr addr, MemValue value);
 
 void os_setLowNibble(Heap const* heap, MemAddr addr, MemValue value);
 
+/*
+*allokiert gemeinsamen Speicherbereich analog zu malloc aber mit neuem Protokoll
+*/
+MemAddr os_sh_malloc(Heap* heap, uint16_t size);
+
+/*
+*gibt gemeinsamen Speicherbereich frei analog zu free
+*/
+void os_sh_free(Heap* heap, MemAddr* ptr);
+
+/*
+*oeffnet Speicherbereich fuer lesenden Zugriff
+*/
+MemAddr os_sh_readOpen(Heap const* heap, MemAddr const *ptr);
+
+/*
+*oeffnet Speicherbereich fuer schreibenden Zugriff
+*/
+MemAddr os_sh_writeOpen(Heap const* heap, MemAddr const *ptr);
+
+/*
+*schliesst Speicherbereich wieder
+*/
+void os_sh_close(Heap const* heap, MemAddr addr);
+
+/*
+*schreibender Zugriff auf Speicherbereich, indem Daten in den gemeinsamen Speicherbereich kopiert werden
+*/
+void os_sh_write(Heap const* heap, MemAddr const* ptr, uint16_t offset, MemValue const* dataSrc, uint16_t length);
+
+/*
+*lesender Zugriff auf Speicherbereich, indem Daten aus dem gemeinsamen Speicherbereich kopiert werden
+*/
+void os_sh_read(Heap const* heap, MemAddr const* ptr, uint16_t offset, MemValue* dataDest, uint16_t length);
+
 #endif

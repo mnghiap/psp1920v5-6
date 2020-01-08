@@ -86,6 +86,7 @@ void os_errorPStr(char const* str) {
     lcd_writeProgString(str);//Fehlermeldung auf LCD ausgeben
     while((os_getInput() & 0b00001001) != 0b00001001) {//solange warten bis "Enter+ESC" gedrueckt wurde
     }
+	os_waitForNoInput();
     lcd_clear();//Fehlermeldung beenden
     if((active & 0b10000000) == 0b10000000) {//fragt ob vorher Interrupt aktiviert war
     SREG |= 0b10000000;//Betriebssystem fortfuehren (Interrupts global aktivieren)

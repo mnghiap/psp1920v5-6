@@ -504,6 +504,9 @@ void os_free(Heap* heap, MemAddr addr) {
     if(limit > (os_getUseStart(heap) + os_getUseSize(heap))) {
       limit = (os_getUseStart(heap) + os_getUseSize(heap));
     }
+    if(os_getMapEntry(heap, start) > 7) {//Ungueltiger Freigabeversuch
+      os_error("Please use os_sh_free!");
+    }
     if(os_getMapEntry(heap, start) == os_getCurrentProc()) {//Prozess darf nur seinen eigenen Speicher freigeben, im Nibble von start sollte die ProzessID stehen
       for(uint16_t i=start; i<limit; i++) {
         os_setMapEntry(heap, i, 0);
@@ -588,7 +591,7 @@ void os_free(Heap* heap, MemAddr addr) {
 //aOptimierung------------------------------------------------------------------
 
     }
-    else {//Ungueltiger Freigabeversuch
+    if((os_getMapEntry(heap, start) < 8) && (os_getMapEntry(heap, start) != os_getCurrentProc())) {//Ungueltiger Freigabeversuch
       os_error("Privatsphaere verletzt! :(");
     }
   }
@@ -727,4 +730,163 @@ void os_setLowNibble(Heap const* heap, MemAddr addr, MemValue value) {
   nibble |= (value & 0b00001111);//Setzen des neuen Nibbles
   heap->driver->write(addr, nibble);//Schreibt neues Nibble in Speichermedium
   os_leaveCriticalSection();
+}
+
+//Gemeinsame Speicherbereiche---------------------------------------------------
+
+/*
+*Idee fuer Protokoll:
+*Insgesamt: Zahlen von 0 bis 15
+*Besetzt: Zahlen von 0 bis 7 und 15
+*Frei: Zahlen von 8 bis 14
+*Zahl 8: Speicherbereich geschlossen (kein Zugriff weder lesend noch schreibend)
+*Zahl 9: Speicherbereich offen (schreibender Zugriff)
+*Zahlen 10 bis 14: lesender Zugriff von maximal 5 Prozessen, 10 entspricht 1 lesender Prozess, 14 entspricht 5 lesende Prozesse
+*/
+
+MemAddr os_sh_malloc(Heap* heap, uint16_t size) {
+  os_enterCriticalSection();//Betreten des kritischen Bereichs
+  if(initializerint && (heap == intHeap)) {
+    nextaddrint = os_getUseStart(heap)-1;
+    initializerint = false;
+  }
+  if(initializerext && (heap == extHeap)) {
+    nextaddrext = os_getUseStart(heap)-1;
+    initializerext = false;
+  }
+  MemAddr useaddr = 0;//irgendwie initialisieren
+  switch(heap->currentalloc) {
+    case OS_MEM_FIRST: useaddr = os_memoryFirstFit(heap, size, os_getUseStart(heap)); break;
+    case OS_MEM_NEXT:
+    if(heap == intHeap) {
+      useaddr = os_memoryNextFit(heap, size, nextaddrint+1);
+    }
+    if(heap == extHeap) {
+      useaddr = os_memoryNextFit(heap, size, nextaddrext+1);
+    }
+    break;
+    case OS_MEM_BEST: useaddr = os_memoryBestFit(heap, size); break;
+    case OS_MEM_WORST: useaddr = os_memoryWorstFit(heap, size); break;
+  }
+  //Ab hier fuer alle Strategien gleich
+  if(useaddr != 0) {//gefunden, sonst return 0
+    if(heap->currentalloc == OS_MEM_NEXT) {//nur veraendern wenn Strategie NextFit verwendet wurde
+      if(heap == intHeap) {
+        nextaddrint = useaddr;//aktuallisiert gefundene letzte freie Speicheradresse fuer NextFit
+      }
+      if(heap == extHeap) {
+        nextaddrext = useaddr;//aktuallisiert gefundene letzte freie Speicheradresse fuer NextFit
+      }
+    }
+    for(uint16_t i=size; i>1; i--) {//i>1 weil der letzte Nibble mit ProzessID beschrieben werden muss
+      os_setMapEntry(heap, useaddr, 0xF);//Beschreibt die Map-Eintraege mit F
+      useaddr -= 1;
+    }
+    os_setMapEntry(heap, useaddr, 8);//letztes bzw erstes Nibble mit 8 (Speicherbereich geschlossen) beschreiben
+
+//aOptimierung------------------------------------------------------------------
+    //keine Optimierung noetig, weil Speicherbereich keinem Prozess alleine gehoert
+//eOptimierung------------------------------------------------------------------
+
+  }
+  os_leaveCriticalSection();//Verlassen des kritischen Bereichs
+  return useaddr;
+}
+
+void os_sh_free(Heap* heap, MemAddr* ptr) {
+  os_enterCriticalSection();//Betreten des kritischen Bereichs
+  if((*ptr < (os_getUseStart(heap) + os_getUseSize(heap))) && (*ptr >= os_getUseStart(heap))) {
+  if(os_getMapEntry(heap, *ptr) != 0) {//sonst ist Speicherplatz frei und man muss nichts freigeben
+    uint16_t size = os_getChunkSize(heap, *ptr);//merkt sich die Groesse des zu freigebenden Speichers
+    MemAddr start = os_firstChunkAddress(heap, *ptr);//jetzt erst, sonst gibt es keine firstChunkAddress
+    uint16_t limit = start+size;
+    if(limit > (os_getUseStart(heap) + os_getUseSize(heap))) {
+      limit = (os_getUseStart(heap) + os_getUseSize(heap));
+    }
+    while(os_getMapEntry(heap, start) > 8) {//warten bis Speicherbereich geschlossen ist
+      os_yield();
+    }
+    if(os_getMapEntry(heap, start) < 8) {//Ungueltgier Freigabeversuch
+      os_error("Please use os_free!");
+    }
+    if(os_getMapEntry(heap, start) == 8) {//Speicherbereich geschlossen und gemeinsamer Speicherbereich
+      for(uint16_t i=start; i<limit; i++) {
+        os_setMapEntry(heap, i, 0);
+      }
+
+//aOptimierung------------------------------------------------------------------
+        //keine Optimierung noetig, weil Speicherbereich keinem Prozess alleine gehoert
+//aOptimierung------------------------------------------------------------------
+
+    }
+  }
+  }
+  os_leaveCriticalSection();//Verlassen des kritischen Bereichs
+}
+
+MemAddr os_sh_readOpen(Heap const* heap, MemAddr const *ptr) {
+  os_enterCriticalSection();
+  MemAddr start = os_firstChunkAddress(heap, *ptr);
+  while((os_getMapEntry(heap, start) == 9) || os_getMapEntry(heap, start) == 14) {//warten bis schreibender Zugriff beendet und weniger als 5 Prozesse gerade lesen
+    os_yield();//Rechenzeit abgeben
+  }
+  if(os_getMapEntry(heap, start) == 8) {//Prozess ist einziger lesender Prozess
+    os_setMapEntry(heap, start, 10);
+  }
+  else {//es gibt mindestens einen Prozess der gerade liest
+    os_setMapEntry(heap, start, os_getMapEntry(heap, start)+1);
+  }
+  MemAddr addr = *ptr;//vor os_leaveCriticalSection dereferenzieren
+  os_leaveCriticalSection();
+  return addr;
+}
+
+MemAddr os_sh_writeOpen(Heap const* heap, MemAddr const *ptr) {
+  os_enterCriticalSection();
+  MemAddr start = os_firstChunkAddress(heap, *ptr);
+  while(os_getMapEntry(heap, start) > 8) {//warten bis niemand mehr schreibt und niemand mehr liest
+    os_yield();//Rechenzeit abgeben
+  }
+  os_setMapEntry(heap, start, 9);//schreibender Zugriff (Speicherbereich oeffnen)
+  MemAddr addr = *ptr;//vor os_leaveCriticalSection dereferenzieren
+  os_leaveCriticalSection();
+  return addr;
+}
+
+void os_sh_close(Heap const* heap, MemAddr addr) {
+  os_enterCriticalSection();
+  MemAddr start = os_firstChunkAddress(heap, addr);
+  if((os_getMapEntry(heap, start) == 9) || (os_getMapEntry(heap, start) == 10) ) {//schreibender Zugriff oder nur einziger lesenden Zugriff schliessen
+    os_setMapEntry(heap, start, 8);//Speicherbereich geschlossen
+  }
+  if(os_getMapEntry(heap, start) > 10) {//momentan mehr als einen lesenden Zugriff
+    os_setMapEntry(heap, start, os_getMapEntry(heap, start)-1);//lesende Prozesse um eins reduzieren
+  }
+  os_leaveCriticalSection();
+}
+
+void os_sh_write(Heap const* heap, MemAddr const* ptr, uint16_t offset, MemValue const* dataSrc, uint16_t length) {
+  MemAddr pointer = os_sh_writeOpen(heap, ptr);
+  if((length+offset) <= os_getChunkSize(heap, *ptr)) {
+    for(uint16_t i=0; i<length; i++) {//length Bytes in den Bereich den gemeinsamen Speicherbereich schreiben
+      heap->driver->write(os_firstChunkAddress(heap, pointer)+offset+i, intHeap->driver->read(((MemAddr)dataSrc)+i));
+    }
+  }
+  else {
+    os_error("Cant write beyond chunk!");//Fehlermeldung
+  }
+  os_sh_close(heap, pointer);
+}
+
+void os_sh_read(Heap const* heap, MemAddr const* ptr, uint16_t offset, MemValue* dataDest, uint16_t length) {
+  MemAddr pointer = os_sh_readOpen(heap, ptr);//Bereich fuer lesenden Zugriff vorbereiten
+  if((length+offset) <= os_getChunkSize(heap, *ptr)) {
+    for(uint16_t i=0; i<length; i++) {//length Bytes in den Bereich dataDest kopieren
+      intHeap->driver->write(((MemAddr)dataDest)+i, heap->driver->read(os_firstChunkAddress(heap, pointer)+offset+i));
+    }
+  }
+  else {
+    os_error("Cant read beyond chunk!");//Fehlermeldung
+  }
+  os_sh_close(heap, pointer);
 }
