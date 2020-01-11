@@ -507,6 +507,9 @@ void os_free(Heap* heap, MemAddr addr) {
     if(os_getMapEntry(heap, start) > 7) {//Ungueltiger Freigabeversuch
       os_error("Please use os_sh_free!");
     }
+    if((os_getMapEntry(heap, start) < 8) && (os_getMapEntry(heap, start) != os_getCurrentProc())) {//Ungueltiger Freigabeversuch
+      os_error("Privatsphaere verletzt! :(");
+    }
     if(os_getMapEntry(heap, start) == os_getCurrentProc()) {//Prozess darf nur seinen eigenen Speicher freigeben, im Nibble von start sollte die ProzessID stehen
       for(uint16_t i=start; i<limit; i++) {
         os_setMapEntry(heap, i, 0);
@@ -590,9 +593,6 @@ void os_free(Heap* heap, MemAddr addr) {
         }*/
 //aOptimierung------------------------------------------------------------------
 
-    }
-    if((os_getMapEntry(heap, start) < 8) && (os_getMapEntry(heap, start) != os_getCurrentProc())) {//Ungueltiger Freigabeversuch
-      os_error("Privatsphaere verletzt! :(");
     }
   }
   }
@@ -798,19 +798,19 @@ void os_sh_free(Heap* heap, MemAddr* ptr) {
   if((*ptr < (os_getUseStart(heap) + os_getUseSize(heap))) && (*ptr >= os_getUseStart(heap))) {
   if(os_getMapEntry(heap, *ptr) != 0) {//sonst ist Speicherplatz frei und man muss nichts freigeben
     uint16_t size = os_getChunkSize(heap, *ptr);//merkt sich die Groesse des zu freigebenden Speichers
-    MemAddr start = os_firstChunkAddress(heap, *ptr);//jetzt erst, sonst gibt es keine firstChunkAddress
-    uint16_t limit = start+size;
+    //MemAddr start = os_firstChunkAddress(heap, *ptr);//jetzt erst, sonst gibt es keine firstChunkAddress
+    uint16_t limit = os_firstChunkAddress(heap, *ptr)+size;
     if(limit > (os_getUseStart(heap) + os_getUseSize(heap))) {
       limit = (os_getUseStart(heap) + os_getUseSize(heap));
     }
-    while(os_getMapEntry(heap, start) > 8) {//warten bis Speicherbereich geschlossen ist
+    while(os_getMapEntry(heap, os_firstChunkAddress(heap, *ptr)) > 8) {//warten bis Speicherbereich geschlossen ist
       os_yield();
     }
-    if(os_getMapEntry(heap, start) < 8) {//Ungueltgier Freigabeversuch
+    if(os_getMapEntry(heap, os_firstChunkAddress(heap, *ptr)) < 8) {//Ungueltgier Freigabeversuch
       os_error("Please use os_free!");
     }
-    if(os_getMapEntry(heap, start) == 8) {//Speicherbereich geschlossen und gemeinsamer Speicherbereich
-      for(uint16_t i=start; i<limit; i++) {
+    if(os_getMapEntry(heap, os_firstChunkAddress(heap, *ptr)) == 8) {//Speicherbereich geschlossen und gemeinsamer Speicherbereich
+      for(uint16_t i=os_firstChunkAddress(heap, *ptr); i<limit; i++) {
         os_setMapEntry(heap, i, 0);
       }
 
@@ -826,15 +826,15 @@ void os_sh_free(Heap* heap, MemAddr* ptr) {
 
 MemAddr os_sh_readOpen(Heap const* heap, MemAddr const *ptr) {
   os_enterCriticalSection();
-  MemAddr start = os_firstChunkAddress(heap, *ptr);
-  while((os_getMapEntry(heap, start) == 9) || os_getMapEntry(heap, start) == 14) {//warten bis schreibender Zugriff beendet und weniger als 5 Prozesse gerade lesen
+  //MemAddr start = os_firstChunkAddress(heap, *ptr);//ueberall statt start ganz hinschreiben, sonst fuehrt dazu dass nur zwei Prozesse bei Test 4 angezeigt werden
+  while((os_getMapEntry(heap, os_firstChunkAddress(heap, *ptr)) == 9) || os_getMapEntry(heap, os_firstChunkAddress(heap, *ptr)) == 14) {//warten bis schreibender Zugriff beendet und weniger als 5 Prozesse gerade lesen
     os_yield();//Rechenzeit abgeben
   }
-  if(os_getMapEntry(heap, start) == 8) {//Prozess ist einziger lesender Prozess
-    os_setMapEntry(heap, start, 10);
+  if(os_getMapEntry(heap, os_firstChunkAddress(heap, *ptr)) == 8) {//Prozess ist einziger lesender Prozess
+    os_setMapEntry(heap, os_firstChunkAddress(heap, *ptr), 10);
   }
   else {//es gibt mindestens einen Prozess der gerade liest
-    os_setMapEntry(heap, start, os_getMapEntry(heap, start)+1);
+    os_setMapEntry(heap, os_firstChunkAddress(heap, *ptr), os_getMapEntry(heap, os_firstChunkAddress(heap, *ptr))+1);
   }
   MemAddr addr = *ptr;//vor os_leaveCriticalSection dereferenzieren
   os_leaveCriticalSection();
@@ -843,11 +843,11 @@ MemAddr os_sh_readOpen(Heap const* heap, MemAddr const *ptr) {
 
 MemAddr os_sh_writeOpen(Heap const* heap, MemAddr const *ptr) {
   os_enterCriticalSection();
-  MemAddr start = os_firstChunkAddress(heap, *ptr);
-  while(os_getMapEntry(heap, start) > 8) {//warten bis niemand mehr schreibt und niemand mehr liest
+  //MemAddr start = os_firstChunkAddress(heap, *ptr);
+  while(os_getMapEntry(heap, os_firstChunkAddress(heap, *ptr)) > 8) {//warten bis niemand mehr schreibt und niemand mehr liest
     os_yield();//Rechenzeit abgeben
   }
-  os_setMapEntry(heap, start, 9);//schreibender Zugriff (Speicherbereich oeffnen)
+  os_setMapEntry(heap, os_firstChunkAddress(heap, *ptr), 9);//schreibender Zugriff (Speicherbereich oeffnen)
   MemAddr addr = *ptr;//vor os_leaveCriticalSection dereferenzieren
   os_leaveCriticalSection();
   return addr;
@@ -855,21 +855,22 @@ MemAddr os_sh_writeOpen(Heap const* heap, MemAddr const *ptr) {
 
 void os_sh_close(Heap const* heap, MemAddr addr) {
   os_enterCriticalSection();
-  MemAddr start = os_firstChunkAddress(heap, addr);
-  if((os_getMapEntry(heap, start) == 9) || (os_getMapEntry(heap, start) == 10) ) {//schreibender Zugriff oder nur einziger lesenden Zugriff schliessen
-    os_setMapEntry(heap, start, 8);//Speicherbereich geschlossen
+  //MemAddr start = os_firstChunkAddress(heap, addr);
+  if((os_getMapEntry(heap, os_firstChunkAddress(heap, addr)) == 9) || (os_getMapEntry(heap, os_firstChunkAddress(heap, addr)) == 10) ) {//schreibender Zugriff oder nur einziger lesenden Zugriff schliessen
+    os_setMapEntry(heap, os_firstChunkAddress(heap, addr), 8);//Speicherbereich geschlossen
   }
-  if(os_getMapEntry(heap, start) > 10) {//momentan mehr als einen lesenden Zugriff
-    os_setMapEntry(heap, start, os_getMapEntry(heap, start)-1);//lesende Prozesse um eins reduzieren
+  if(os_getMapEntry(heap, os_firstChunkAddress(heap, addr)) > 10) {//momentan mehr als einen lesenden Zugriff
+    os_setMapEntry(heap, os_firstChunkAddress(heap, addr), os_getMapEntry(heap, os_firstChunkAddress(heap, addr))-1);//lesende Prozesse um eins reduzieren
   }
   os_leaveCriticalSection();
 }
 
 void os_sh_write(Heap const* heap, MemAddr const* ptr, uint16_t offset, MemValue const* dataSrc, uint16_t length) {
   MemAddr pointer = os_sh_writeOpen(heap, ptr);
-  if((length+offset) <= os_getChunkSize(heap, *ptr)) {
+  //MemAddr start = os_firstChunkAddress(heap, pointer);
+  if((length+offset) <= os_getChunkSize(heap, pointer)) {
     for(uint16_t i=0; i<length; i++) {//length Bytes in den Bereich den gemeinsamen Speicherbereich schreiben
-      heap->driver->write(os_firstChunkAddress(heap, pointer)+offset+i, intHeap->driver->read(((MemAddr)dataSrc)+i));
+      heap->driver->write(i+offset+os_firstChunkAddress(heap, pointer), intHeap->driver->read(i+((MemAddr)dataSrc)));//Kein Array!!!
     }
   }
   else {
@@ -880,9 +881,10 @@ void os_sh_write(Heap const* heap, MemAddr const* ptr, uint16_t offset, MemValue
 
 void os_sh_read(Heap const* heap, MemAddr const* ptr, uint16_t offset, MemValue* dataDest, uint16_t length) {
   MemAddr pointer = os_sh_readOpen(heap, ptr);//Bereich fuer lesenden Zugriff vorbereiten
-  if((length+offset) <= os_getChunkSize(heap, *ptr)) {
+  //MemAddr start = os_firstChunkAddress(heap, pointer);
+  if((length+offset) <= os_getChunkSize(heap, pointer)) {
     for(uint16_t i=0; i<length; i++) {//length Bytes in den Bereich dataDest kopieren
-      intHeap->driver->write(((MemAddr)dataDest)+i, heap->driver->read(os_firstChunkAddress(heap, pointer)+offset+i));
+      intHeap->driver->write(i+((MemAddr)dataDest), heap->driver->read(i+offset+os_firstChunkAddress(heap, pointer)));//Kein Array!!!
     }
   }
   else {

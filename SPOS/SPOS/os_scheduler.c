@@ -108,6 +108,7 @@ ISR(TIMER2_COMPA_vect) {
       case OS_SS_ROUND_ROBIN: currentProc = os_Scheduler_RoundRobin(os_processes, os_getCurrentProc()); break;
       case OS_SS_INACTIVE_AGING: currentProc = os_Scheduler_InactiveAging(os_processes, os_getCurrentProc()); break;
 	  case OS_SS_MULTI_LEVEL_FEEDBACK_QUEUE: currentProc = os_Scheduler_MLFQ(os_processes, os_getCurrentProc()); break;
+	  default: break;
     }
 	
 	// Hier sollen Prozesse, die blocked ignoriert wurden, wieder zu OS_PS_READY gesetzt werden

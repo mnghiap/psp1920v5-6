@@ -11,7 +11,7 @@
 
 #define intHeap (&intHeap__)
 #define extHeap (&extHeap__)
-#define SAVE_DISTANCE 402
+#define SAVE_DISTANCE 422 // make sure it's congruent to 2 modulo 3, else while there would be one or 2 bytes at the end without map address
 
 //Global Variables--------------------------------------------------------------
 
