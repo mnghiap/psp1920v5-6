@@ -44,7 +44,7 @@
  *  This number includes the idle proc, although it is considered a system proc.
  *  The idle proc. has always id 0. The highest ID is MAX_NUMBER_OF_PROCESSES-1.
  */
-#define MAX_NUMBER_OF_PROCESSES     8
+#define MAX_NUMBER_OF_PROCESSES     2
 
 //! Maximum number of programs that can be known by the os (<17, 255 is invalid).
 #define MAX_NUMBER_OF_PROGRAMS      16

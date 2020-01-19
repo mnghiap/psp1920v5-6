@@ -45,13 +45,13 @@
     #include "util.h"
 
     //! DDR of Port connected to LCD
-    #define LCD_PORT_DDR DDRA
+    #define LCD_PORT_DDR DDRB
 
     //! PORT connected to LCD
-    #define LCD_PORT_DATA PORTA
+    #define LCD_PORT_DATA PORTB
 
     //! PIN connected to LCD
-    #define LCD_PIN PINA
+    #define LCD_PIN PINB
 #endif
 
 //! First value for init
