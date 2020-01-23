@@ -59,7 +59,7 @@ void draw_setPixel(uint8_t x, uint8_t y, Color color)
 //! \brief Reconstructs RGB-Color from layers of frame buffer
 Color draw_getPixel(uint8_t x, uint8_t y)
 {
-	uint8_t tmp_r, tmp_g, tmp_b;
+	uint8_t tmp_r = 0, tmp_g = 0, tmp_b = 0;
 	
 	/* frame buffer byte pattern: - | - | B2 | G2 | R2 | B1 | G1 | R1 */
 	
@@ -67,18 +67,18 @@ Color draw_getPixel(uint8_t x, uint8_t y)
 		
 		for(uint8_t i = 0; i < 3; i++){
 			/* Take the (i+1). bit of each color based on the byte pattern */
-			tmp_r = (framebuffer[i][x][y] & 0b00000001) << (7 - i);
-			tmp_g = (framebuffer[i][x][y] & 0b00000010) << (6 - i);
-			tmp_b = (framebuffer[i][x][y] & 0b00000100) << (5 - i);
+			tmp_r |= (framebuffer[i][x][y] & 0b00000001) << (7 - i);
+			tmp_g |= (framebuffer[i][x][y] & 0b00000010) << (6 - i);
+			tmp_b |= (framebuffer[i][x][y] & 0b00000100) << (5 - i);
 		}
 		
 	} else { // The row below
 		
 		for(uint8_t i = 0; i < 3; i++){
 			/* Take the (i+1). bit of each color based on the byte pattern */
-			tmp_r = (framebuffer[i][x - 16][y] & 0b00001000) << (4 - i);
-			tmp_g = (framebuffer[i][x - 16][y] & 0b00010000) << (3 - i);
-			tmp_b = (framebuffer[i][x - 16][y] & 0b00100000) << (2 - i);
+			tmp_r |= (framebuffer[i][x - 16][y] & 0b00001000) << (4 - i);
+			tmp_g |= (framebuffer[i][x - 16][y] & 0b00010000) << (3 - i);
+			tmp_b |= (framebuffer[i][x - 16][y] & 0b00100000) << (2 - i);
 		}
 		
 	}

@@ -8,7 +8,6 @@
 //Defines-----------------------------------------------------------------------
 
 #define intSRAM (&intSRAM__)
-#define extSRAM (&extSRAM__)
 
 //Global Variables--------------------------------------------------------------
 
@@ -26,7 +25,6 @@ typedef struct {//Informationen ueber Speichermedium, direkter Zugriff auf Speic
 } MemDriver;
 
 extern MemDriver intSRAM__;//Initialisierung in os_mem_drivers.c (deswegen extern), muss hier stehen da MemDriver davor definiert werden muss
-extern MemDriver extSRAM__;//analog
 
 //Functions---------------------------------------------------------------------
 

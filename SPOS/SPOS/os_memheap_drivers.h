@@ -10,8 +10,7 @@
 //Defines-----------------------------------------------------------------------
 
 #define intHeap (&intHeap__)
-#define extHeap (&extHeap__)
-#define SAVE_DISTANCE 422 // make sure it's congruent to 2 modulo 3, else while there would be one or 2 bytes at the end without map address
+#define SAVE_DISTANCE 2048 // make sure it's congruent to 2 modulo 3, else while there would be one or 2 bytes at the end without map address
 
 //Global Variables--------------------------------------------------------------
 
@@ -35,7 +34,6 @@ typedef struct {
 } Heap;
 
 extern Heap intHeap__;//Initialisierung in os_memheap_drivers.c (deswegen extern), muss hier stehen da MemDriver davor definiert werden muss
-extern Heap extHeap__;//analog
 
 //Functions---------------------------------------------------------------------
 

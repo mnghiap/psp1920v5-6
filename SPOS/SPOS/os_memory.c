@@ -21,19 +21,12 @@ MemAddr os_malloc(Heap* heap, uint16_t size) {
     nextaddrint = os_getUseStart(heap)-1;
     initializerint = false;
   }
-  if(initializerext && (heap == extHeap)) {
-    nextaddrext = os_getUseStart(heap)-1;
-    initializerext = false;
-  }
   MemAddr useaddr = 0;//irgendwie initialisieren
   switch(heap->currentalloc) {
     case OS_MEM_FIRST: useaddr = os_memoryFirstFit(heap, size, os_getUseStart(heap)); break;
     case OS_MEM_NEXT:
     if(heap == intHeap) {
       useaddr = os_memoryNextFit(heap, size, nextaddrint+1);
-    }
-    if(heap == extHeap) {
-      useaddr = os_memoryNextFit(heap, size, nextaddrext+1);
     }
     break;
     case OS_MEM_BEST: useaddr = os_memoryBestFit(heap, size); break;
@@ -54,9 +47,6 @@ MemAddr os_malloc(Heap* heap, uint16_t size) {
       if(heap == intHeap) {
         nextaddrint = useaddr;//aktuallisiert gefundene letzte freie Speicheradresse fuer NextFit
       }
-      if(heap == extHeap) {
-        nextaddrext = useaddr;//aktuallisiert gefundene letzte freie Speicheradresse fuer NextFit
-      }
     }
     for(uint16_t i=size; i>1; i--) {//i>1 weil der letzte Nibble mit ProzessID beschrieben werden muss
       os_setMapEntry(heap, useaddr, 0xF);//Beschreibt die Map-Eintraege mit F
@@ -65,23 +55,7 @@ MemAddr os_malloc(Heap* heap, uint16_t size) {
     os_setMapEntry(heap, useaddr, os_getCurrentProc());//letztes bzw erstes Nibble mit ProzessID beschreiben
 
 //aOptimierung------------------------------------------------------------------
-    if(heap == extHeap) {
-      //Fall 1: allokierter Bereich liegt zwischen bereits allokiertem
-      //nichts tun
-      //Fall 4: allokierter Bereich ist der erste im extHeap
-      if(((os_getProcessSlot(os_getCurrentProc())->allocFrameStart) == os_getUseStart(heap)) && ((os_getProcessSlot(os_getCurrentProc())->allocFrameEnd) == os_getUseStart(heap))) {
-        os_getProcessSlot(os_getCurrentProc())->allocFrameStart = useaddr;
-        os_getProcessSlot(os_getCurrentProc())->allocFrameEnd = (useaddr+size)-1;
-      }
-      //Fall 2: allokierter Bereich liegt vor allen anderen
-      if((os_getProcessSlot(os_getCurrentProc())->allocFrameStart) > useaddr) {
-        os_getProcessSlot(os_getCurrentProc())->allocFrameStart = useaddr;
-      }
-      //Fall 3: allokierter Bereich liegt hinter allen anderen
-      if((os_getProcessSlot(os_getCurrentProc())->allocFrameEnd) < useaddr) {
-        os_getProcessSlot(os_getCurrentProc())->allocFrameEnd = (useaddr+size)-1;
-      }
-    }
+    
 //eOptimierung------------------------------------------------------------------
 
   }
@@ -356,11 +330,7 @@ MemAddr os_realloc(Heap* heap, MemAddr addr, uint16_t size) {
             os_setMapEntry(heap, i, 0xF);
           }
           //Optimierung---------------------------------------------------------
-          if(heap == extHeap) {
-            if(os_getProcessSlot(os_getCurrentProc())->allocFrameEnd < (start+dif)) {
-              os_getProcessSlot(os_getCurrentProc())->allocFrameEnd = (start+dif)-1;
-            }
-          }
+          
           //Optimierung---------------------------------------------------------
           os_leaveCriticalSection();
           return os_firstChunkAddress(heap, addr);
@@ -406,14 +376,7 @@ MemAddr os_realloc(Heap* heap, MemAddr addr, uint16_t size) {
               os_setMapEntry(heap, i, 0xF);
             }
             //Optimierung-------------------------------------------------------
-            if(heap == extHeap) {
-              if(os_getProcessSlot(os_getCurrentProc())->allocFrameEnd == ((first+chunksize)-1)) {//sonst stimmt was mit allocFrameEnd nicht
-                os_getProcessSlot(os_getCurrentProc())->allocFrameEnd = (start+size)-1;
-              }
-              if(os_getProcessSlot(os_getCurrentProc())->allocFrameStart == first) {//sonst stimmt was mit allocFrameEnd nicht
-                os_getProcessSlot(os_getCurrentProc())->allocFrameStart = start;
-              }
-            }
+            
             //Optimierung-------------------------------------------------------
             os_leaveCriticalSection();
             return start;
@@ -516,45 +479,7 @@ void os_free(Heap* heap, MemAddr addr) {
       }
 
 //aOptimierung------------------------------------------------------------------
-      if(heap == extHeap) {
-        //4 Faelle betrachten
-        //Fall 1: gefreeter Bereich liegt zwischen noch allozierten Bereich belegtem Bereich
-        //In dem Fall muss nichts gemacht werden
-        //Fall 2: gefreeter Bereich liegt vor allen anderen allozierten Bereichen
-        //In dem Fall muss allocFrameStart veraendert werden
-        if((os_getProcessSlot(os_getCurrentProc())->allocFrameStart) == start) {
-          //druchsuche ab start den map Bereich nach ProzessID
-          bool found = false;
-          for(uint16_t j=start; j<(os_getUseStart(heap)+os_getUseSize(heap)); j++) {
-            if(os_getMapEntry(heap, j) == os_getCurrentProc()) {
-              os_getProcessSlot(os_getCurrentProc())->allocFrameStart = j;
-              found = true;
-              break;
-            }
-          }
-          if(found == false) {//gerade gefreeter Chunk war der einzige im extHeap
-            os_getProcessSlot(os_getCurrentProc())->allocFrameStart = os_getUseStart(heap);
-            os_getProcessSlot(os_getCurrentProc())->allocFrameEnd = os_getUseStart(heap);
-          }
-        }
-        //Fall 3: gefreeter Bereich liegt hinter allen anderen allozierten Bereichen
-        if((os_getProcessSlot(os_getCurrentProc())->allocFrameEnd) == ((start+size)-1)) {
-          //durchsuche ab start+size-1 den map Bereich nach ProzessID (von unten nach oben)
-          bool found = false;
-          for(uint16_t k=(start+size)-1; k>=os_getUseStart(heap); k--) {
-            if(os_getMapEntry(heap, k) == os_getCurrentProc()) {
-              found = true;
-              //neue End berechnen
-              os_getProcessSlot(os_getCurrentProc())->allocFrameEnd = (k+os_getChunkSize(heap, k))-1;
-              break;
-            }
-          }
-          if(found == false) {//gerade gefreeter Chunk war der einzige im extHeap
-            os_getProcessSlot(os_getCurrentProc())->allocFrameStart = os_getUseStart(heap);
-            os_getProcessSlot(os_getCurrentProc())->allocFrameEnd = os_getUseStart(heap);
-          }
-        }
-      }
+      
         //Fall 4: gefreeter Bereich war einziger Bereich im extHeap
         //wurde in Fall 2 und 3 schon betrachtet
         /*if((os_getProcessSlot(os_getCurrentProc())->allocFrameEnd) == (limit-1)) {//neu allozierter Bereich befindet sich hinter allocFrameEnd
@@ -604,13 +529,10 @@ void os_freeProcessMemory(Heap* heap, ProcessID pid) {
   MemAddr end = os_getUseStart(heap) + os_getUseSize(heap);
 
 //aOptimierung------------------------------------------------------------------
-  if(heap == extHeap) {
-    start = os_getProcessSlot(pid)->allocFrameStart;//Beginnt Suche bei allocFrameStart wegen Optimierung
-    end = (os_getProcessSlot(pid)->allocFrameEnd)+1;//wegen kleiner
-  }
+  
 //eOptimierung------------------------------------------------------------------
 
-  if(((heap == extHeap) && !((os_getProcessSlot(pid)->allocFrameStart==os_getUseStart(heap)) && (os_getProcessSlot(pid)->allocFrameEnd==os_getUseStart(heap)))) || heap == intHeap) {//sonst kein Chunk im extHeap, sollte man nicht brauchen
+  if((!((os_getProcessSlot(pid)->allocFrameStart==os_getUseStart(heap)) && (os_getProcessSlot(pid)->allocFrameEnd==os_getUseStart(heap)))) || heap == intHeap) {//sonst kein Chunk im extHeap, sollte man nicht brauchen
     bool find = false;//merkt sich ob pid gefunden, fuer nachfolgende Fs
     for (uint16_t i=start; i<end; i++) {
       if((find == true) && (os_getMapEntry(heap, i) == 0xF)) {
@@ -750,10 +672,7 @@ MemAddr os_sh_malloc(Heap* heap, uint16_t size) {
     nextaddrint = os_getUseStart(heap)-1;
     initializerint = false;
   }
-  if(initializerext && (heap == extHeap)) {
-    nextaddrext = os_getUseStart(heap)-1;
-    initializerext = false;
-  }
+ 
   MemAddr useaddr = 0;//irgendwie initialisieren
   switch(heap->currentalloc) {
     case OS_MEM_FIRST: useaddr = os_memoryFirstFit(heap, size, os_getUseStart(heap)); break;
@@ -761,9 +680,7 @@ MemAddr os_sh_malloc(Heap* heap, uint16_t size) {
     if(heap == intHeap) {
       useaddr = os_memoryNextFit(heap, size, nextaddrint+1);
     }
-    if(heap == extHeap) {
-      useaddr = os_memoryNextFit(heap, size, nextaddrext+1);
-    }
+    
     break;
     case OS_MEM_BEST: useaddr = os_memoryBestFit(heap, size); break;
     case OS_MEM_WORST: useaddr = os_memoryWorstFit(heap, size); break;
@@ -774,9 +691,7 @@ MemAddr os_sh_malloc(Heap* heap, uint16_t size) {
       if(heap == intHeap) {
         nextaddrint = useaddr;//aktuallisiert gefundene letzte freie Speicheradresse fuer NextFit
       }
-      if(heap == extHeap) {
-        nextaddrext = useaddr;//aktuallisiert gefundene letzte freie Speicheradresse fuer NextFit
-      }
+      
     }
     for(uint16_t i=size; i>1; i--) {//i>1 weil der letzte Nibble mit ProzessID beschrieben werden muss
       os_setMapEntry(heap, useaddr, 0xF);//Beschreibt die Map-Eintraege mit F

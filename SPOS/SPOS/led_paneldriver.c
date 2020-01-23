@@ -70,8 +70,8 @@ void panel_outputDisable(void) {
 
 void panel_setAddress(uint8_t rowselect) {
 	uint8_t row = (rowselect & 0b00001111);
-	PORTA |= row;//waehlt die Doppelzeile aus
 	PORTA &= 0b11110000;
+	PORTA |= row;//waehlt die Doppelzeile aus	
 }
 
 void panel_setColor(uint8_t ebene, uint8_t zeile, uint8_t spalte) {//im Text heisst es setOutput aber egal...
@@ -107,7 +107,7 @@ ISR(TIMER1_COMPA_vect) {
 		panel_setAddress(rowselect);
 		for(uint8_t i=0; i<32; i++) {//fuer 32 Spalten
 			//2. Farbenbyte uebergeben
-			panel_setColor(level, rowselect, 31-i); // Note: Fill the last column first, because we're working with shift register
+			panel_setColor(level, rowselect, i); // Note: Fill the last column first, because we're working with shift register
 			//3. Bits mit Clock einlesen lassen
 			panel_CLK();
 		}
