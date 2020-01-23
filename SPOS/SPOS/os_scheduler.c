@@ -266,7 +266,6 @@ ProcessID os_exec(ProgramID programID, Priority priority) {
     os_processes[freeplace].progID = programID;//Programmindex speichern
     os_processes[freeplace].priority = priority;//Prozessprioritaet speichern
     //Optimierung
-   
     os_resetProcessSchedulingInformation(freeplace);//Alter des Prozesses auf 0 setzen
     //4. Prozessstack vorbereiten
     //StackPointer stackpointer;
@@ -471,7 +470,6 @@ bool os_kill(ProcessID pid) {//muss ueber os_dispatcher stehen
   }
   os_processes[pid].state = OS_PS_UNUSED;//Prozess-Array-Stelle aufraeumen/freigeben
   os_freeProcessMemory(intHeap, pid);//loescht alle allozierten Speicherbereiche des aktuellen Prozesses falls dieser terminiert ist
-  
   if(pid == os_getCurrentProc()) {//Prozess terminiert sich selbst
     criticalSectionCount = 1;//da in os_leaveCriticalSection() dann -1 ausgefuehrt, also 0 wird
     os_leaveCriticalSection();
