@@ -6,7 +6,6 @@
 //geaendert
 #include "os_mem_drivers.h"
 #include "os_memheap_drivers.h"
-#include "joystick.h"
 
 #include <avr/interrupt.h>
 
@@ -72,8 +71,6 @@ void os_init(void) {
     intSRAM->init();
     
     os_initHeaps();
-	
-	js_init();
 }
 
 /*!

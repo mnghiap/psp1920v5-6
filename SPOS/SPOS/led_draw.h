@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-typedef struct Color
+typedef struct
 {
 	uint8_t r;
 	uint8_t g;

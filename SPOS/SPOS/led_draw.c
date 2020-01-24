@@ -31,7 +31,7 @@ void draw_setPixel(uint8_t x, uint8_t y, Color color)
 		
 		for(uint8_t i = 0; i < 3; i++){
 			/* Save the (i+1). bit of each r g b (index count from left) */
-			tmpcolor  = (color.b >> (5 - i) ) & 0b00000100;
+			tmpcolor |= (color.b >> (5 - i) ) & 0b00000100;
 			tmpcolor |= (color.g >> (6 - i) ) & 0b00000010;
 			tmpcolor |= (color.r >> (7 - i) ) & 0b00000001;
 			
@@ -44,7 +44,7 @@ void draw_setPixel(uint8_t x, uint8_t y, Color color)
 		
 		for(uint8_t i = 0; i < 3; i++){
 			/* Save the (i+1). bit of each r g b (index count from left) */
-			tmpcolor  = (color.b >> (2 - i) ) & 0b00100000;
+			tmpcolor |= (color.b >> (2 - i) ) & 0b00100000;
 			tmpcolor |= (color.g >> (3 - i) ) & 0b00010000;
 			tmpcolor |= (color.r >> (4 - i) ) & 0b00001000;
 			

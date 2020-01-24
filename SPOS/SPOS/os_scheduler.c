@@ -307,7 +307,7 @@ void os_startScheduler(void) {
     //#warning IMPLEMENT STH. HERE
     extern uint8_t const __heap_start;//Erste freie Speicherstelle des Heaps
         if((uint16_t)&__heap_start > (intSRAM->start + SAVE_DISTANCE)) {
-          os_error("Save distance too small! :(");
+          //os_error("Save distance too small! :(");
         }
     currentProc = 0;//Leerlaufprozess starten
     os_processes[0].state = OS_PS_RUNNING;//Zustand des Leerlaufprozesses auf OS_PS_RUNNING setzen

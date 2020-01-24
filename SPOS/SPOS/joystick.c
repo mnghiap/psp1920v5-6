@@ -140,8 +140,10 @@ Direction js_getDirection(){
 	return JS_NEUTRAL; 
 }
 
+// This is buggy in PC-POOL. Better test in Praktikumsraum
+// True if button is pressed iff PINA7 = 0
 bool js_getButton(){
-	/* Button is pressed if PINA7 = 0 */
-	uint8_t button = (~PINA >> 7);
+	uint8_t button = PINA;
+	button = button >> 7;
 	return (button == 1);
 }

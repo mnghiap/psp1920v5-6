@@ -30,8 +30,9 @@
  * 01: RIGHT
  * 10: LEFT
  *
- * snakeHead and snakeTail represent the absolute coordinations 
- * of the head and the tail. The same for food. 
+ * snakeHead represent the absolute coordination of the head
+ * The same for food. snakeHead will be used to reconstruct
+ * the snake graphically. 
  *
  * currentDirection determines the current direction, in which
  * the snake is moving. This makes updating the game state
@@ -40,13 +41,13 @@
 
 Position snakeHead;
 Direction currentDirection;
-Position snakeTail;
 uint16_t highScore = 0;
 uint16_t currentScore = 0;
 uint8_t  snakeBody[256];
 Position food;
 uint16_t head = 1;
 uint16_t tail = 0;
+bool justPaused = false;
 
 Color WHITE  = { .r = 0xFF, .g = 0xFF, .b = 0xFF }; // White
 Color RED    = { .r = 0xFF, .g = 0x00, .b = 0x00 }; // Red
@@ -60,6 +61,14 @@ Color BLACK  = { .r = 0x00, .g = 0x00, .b = 0x00 }; // Black
 // These macros will be used to count up or down "head" and "tail".
 #define increment(x) ((x + 1) % 1024) // snakeBody contains 1024 snakebits
 #define decrement(x) ((x - 1) % 1024)
+
+// Change colors with these macros. Life is colorful.
+#define WALL_COLOR           GREEN
+#define PLAYGROUND_COLOR     BLACK
+#define HIGH_SCORE_COLOR     RED
+#define CURRENT_SCORE_COLOR  BLUE
+#define SNAKE_COLOR          WHITE
+#define FOOD_COLOR           YELLOW
 
 // Show score (up to 9999) using small patterns with (x,y) as upper left corner
 void showScore(uint8_t x, uint8_t y, uint16_t score, Color color){
@@ -108,6 +117,7 @@ void showLostScreen(){
 		draw_letter('O', 17, 11, color_NOOB, true);
 		draw_letter('O', 17, 18, color_NOOB, true);
 		draw_letter('B', 17, 25, color_NOOB, true);
+		delayMs(300);
 	}
 	ledSnake_startNewGame();
 }
@@ -130,35 +140,54 @@ void initDisplay(){
 	draw_clearDisplay();
 	
 	// Show high score in red
-	showScore(0, 0, highScore, RED);
+	showScore(0, 0, highScore, HIGH_SCORE_COLOR);
 	
 	// Show current score in blue
-	showScore(0, 17, currentScore, BLUE);
+	showScore(0, 17, currentScore, CURRENT_SCORE_COLOR);
 	
 	// Draw the wall in green
 	for(uint8_t x = 6; x < 32; x++){
-		draw_setPixel(x, 0, GREEN);
-		draw_setPixel(x, 31, GREEN);
+		draw_setPixel(x, 0, WALL_COLOR);
+		draw_setPixel(x, 31, WALL_COLOR);
 	}
 	
 	for(uint8_t y = 0; y < 32; y++){
-		draw_setPixel(6, y, GREEN);
-		draw_setPixel(31, y, GREEN);
+		draw_setPixel(6, y, WALL_COLOR);
+		draw_setPixel(31, y, WALL_COLOR);
 	}
 	
 	/* In general, when drawing food or snake, their x coordinate is shifted by +6
 	 * so we can show the score above.
 	 */
-	
-	// Draw the food in pink
-	draw_setPixel(food.x + 6, food.y, PINK);
-	
-	// Draw the initial snake in white
-	draw_setPixel(snakeHead.x + 6, snakeHead.y, WHITE);
-	draw_setPixel(snakeTail.x + 6, snakeTail.y, WHITE);
 }
+// Forward declarations
+Direction snake_get(uint16_t pos);
 
-// Display update will be done directly in updateGameState for efficiency
+// State of the game will be reconstructed graphically and output.
+// This includes only the snake and the food.
+void updateDisplay(){
+	// Clear the playground
+	draw_filledRectangle(7, 1, 30, 30, PLAYGROUND_COLOR);
+	
+	// Reconstruct the snake from the position of the head and the ring buffer
+	draw_setPixel(snakeHead.x + 6, snakeHead.y, SNAKE_COLOR);
+	Position tmp_pos = {.x = snakeHead.x, .y = snakeHead.y};
+	for(uint16_t i = decrement(head); i != decrement(tail); i = decrement(i)){
+		Direction tmp_dir = snake_get(i);
+		switch(tmp_dir){
+			case JS_DOWN: tmp_pos.x--; break;
+			case JS_UP: tmp_pos.x++; break;
+			case JS_LEFT: tmp_pos.y++; break;
+			case JS_RIGHT: tmp_pos.y--; break;
+			default: break;
+		}
+		draw_setPixel(tmp_pos.x + 6, tmp_pos.y, SNAKE_COLOR);
+	}
+	
+	// Draw food
+	draw_setPixel(food.x + 6, food.y, FOOD_COLOR);
+	
+}
 
 // Function to encode the direction to 2 bits
 uint8_t encodeDirection(Direction dir){
@@ -248,8 +277,6 @@ void resetSnakePosition(){
 	snakeHead.x = 12;
 	snakeHead.y = 15;
 	currentDirection = JS_LEFT;
-	snakeTail.x = 12;
-	snakeTail.y = 16;
 	head = 1;
 	tail = 0;
 	snake_set(tail, JS_LEFT);
@@ -283,6 +310,7 @@ void updateGameState(){
 	if(js_getButton()){
 		/* Show pause screen if the button is pressed*/
 		showPauseScreen();
+		justPaused = true;
 	} else {
 		/* Read the input from the joystick*/
 		Direction nextDir = js_getDirection();
@@ -326,11 +354,11 @@ void updateGameState(){
 		 */
 		Position tmp_pos = {.x = snakeHead.x, .y = snakeHead.y}; // temporary variable to store temporary coordinate
 		for(uint16_t i = decrement(head); i != decrement(tail); i = decrement(i)){ 
-			// This loop will calculate a snakebit coordinate based on its predecessor
+			// This loop will calculate a snakebit coordinate based on its successor
 			Direction dir = snake_get(i);
 			switch(dir){
-				case JS_DOWN: tmp_pos.x++; break;
-				case JS_UP: tmp_pos.x--; break;
+				case JS_DOWN: tmp_pos.x--; break;
+				case JS_UP: tmp_pos.x++; break;
 				case JS_LEFT: tmp_pos.y++; break;
 				case JS_RIGHT: tmp_pos.y--; break;
 				default: break;
@@ -343,39 +371,29 @@ void updateGameState(){
 		
 		/* Check whether food was eaten */
 		if(snakeHead.x == food.x && snakeHead.y == food.y){ // If food was eaten...
-			/* First delete old food on the display */
-			draw_setPixel(food.x, food. y, BLACK);
-			
 			resetFoodPosition(); //... then make new food
+			currentScore++; // and gain a score	
+			showScore(0, 17, currentScore, CURRENT_SCORE_COLOR); // show the new score
 			
-			/* Show the new food*/
-			draw_setPixel(food.x, food.y, PINK);
-			
-			currentScore++; // and gain a score
-			
-			/* Display the new score */
-			showScore(0, 17, currentScore, BLUE);
-			
+			/* Apparently, showScore overwrites some parts of the upper wall. 
+			 * We have to draw them again.
+			 */
+			for(uint8_t col = 0; col < 32; col++){
+				draw_setPixel(6, col, WALL_COLOR);
+			}
+			draw_setPixel(7, 31, WALL_COLOR);
 			// The tail doesn't change
 		} else { // Position of the tail changes
-			/* Clear the old tail from the display */
-			draw_setPixel(snakeTail.x + 6, snakeTail.y, BLACK);
-			
-			/* Calculate position of the new tail */
-			Direction tailDir = snake_get(tail);
-			switch(tailDir){
-				case JS_UP: snakeTail.x++; break;
-				case JS_DOWN: snakeTail.x--; break;
-				case JS_LEFT: snakeTail.y--; break;
-				case JS_RIGHT: snakeTail.y++; break;
-				default: break;
-			}
-			
-			snake_removeTail(); // and remove the tail from the ring buffer
+			snake_removeTail(); // Remove the tail from the ring buffer
 		}
 		
-		/* Draw the new snake head */
-		draw_setPixel(snakeHead.x + 6, snakeHead.y, WHITE);
+		/* justPaused will determine whether we have to init the screen again */
+		if(justPaused == true){
+			initDisplay();
+		}
+		updateDisplay();
+		justPaused = false;
+		delayMs(700); // Give player reaction time. Can me modified to set difficulty.
 	}
 		
 }
@@ -385,7 +403,6 @@ void ledSnake_startNewGame(){
 	resetGame();
 	
 	while(1){
-		updateGameState();
-		delayMs(100); // Give player reaction time. Can me modified to set difficulty.
+		updateGameState();	
 	}
 }
