@@ -95,11 +95,11 @@ Direction js_getDirection(){
 	}
 	
 	if(neutral(horizontal) && low(vertical)){
-		return JS_UP;
+		return JS_DOWN;
 	}
 	
 	if(neutral(horizontal) && high(vertical)){
-		return JS_DOWN;
+		return JS_UP;
 	}
 	
 	if(low(horizontal) && neutral(vertical)){
@@ -116,25 +116,25 @@ Direction js_getDirection(){
 	if(low(horizontal) && low(vertical)){
 		if(lowEdge(horizontal) < lowEdge(vertical)){
 			return JS_LEFT;
-		} else return JS_UP;
+		} else return JS_DOWN;
 	}
 	
 	if(low(horizontal) && high(vertical)){
 		if(lowEdge(horizontal) < highEdge(vertical)){
 			return JS_LEFT;
-		} else return JS_DOWN;
+		} else return JS_UP;
 	}
 	
 	if(high(horizontal) && low(vertical)){
 		if(highEdge(horizontal) < lowEdge(vertical)){
 			return JS_RIGHT;
-		} else return JS_UP;
+		} else return JS_DOWN;
 	}
 	
 	if(high(horizontal) && high(vertical)){
 		if(highEdge(horizontal) < highEdge(vertical)){
 			return JS_RIGHT;
-		} else return JS_DOWN;
+		} else return JS_UP;
 	}
 	
 	return JS_NEUTRAL; 
@@ -145,5 +145,5 @@ Direction js_getDirection(){
 bool js_getButton(){
 	uint8_t button = PINA;
 	button = button >> 7;
-	return (button == 1);
+	return (button == 0);
 }

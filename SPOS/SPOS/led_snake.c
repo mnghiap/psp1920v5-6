@@ -49,26 +49,26 @@ uint16_t head = 1;
 uint16_t tail = 0;
 bool justPaused = false;
 
-Color WHITE  = { .r = 0xFF, .g = 0xFF, .b = 0xFF }; // White
-Color RED    = { .r = 0xFF, .g = 0x00, .b = 0x00 }; // Red
-Color GREEN  = { .r = 0x00, .g = 0xFF, .b = 0x00 }; // Green
-Color BLUE   = { .r = 0x00, .g = 0x00, .b = 0xFF }; // Blue
-Color PINK   = { .r = 0xFF, .g = 0x00, .b = 0xFF }; // Pink
-Color YELLOW = { .r = 0xFF, .g = 0xFF, .b = 0x00 }; // Yellow
-Color CYAN   = { .r = 0x00, .g = 0xFF, .b = 0xFF }; // Cyan
-Color BLACK  = { .r = 0x00, .g = 0x00, .b = 0x00 }; // Black
+Color WHITE1  = { .r = 0xFF, .g = 0xFF, .b = 0xFF }; // White
+Color RED1   = { .r = 0xFF, .g = 0x00, .b = 0x00 }; // Red
+Color GREEN1  = { .r = 0x00, .g = 0xFF, .b = 0x00 }; // Green
+Color BLUE1  = { .r = 0x00, .g = 0x00, .b = 0xFF }; // Blue
+Color PINK1   = { .r = 0xFF, .g = 0x00, .b = 0xFF }; // Pink
+Color YELLOW1 = { .r = 0xFF, .g = 0xFF, .b = 0x00 }; // Yellow
+Color CYAN1   = { .r = 0x00, .g = 0xFF, .b = 0xFF }; // Cyan
+Color BLACK1  = { .r = 0x00, .g = 0x00, .b = 0x00 }; // Black
 	
 // These macros will be used to count up or down "head" and "tail".
 #define increment(x) ((x + 1) % 1024) // snakeBody contains 1024 snakebits
 #define decrement(x) ((x - 1) % 1024)
 
 // Change colors with these macros. Life is colorful.
-#define WALL_COLOR           GREEN
-#define PLAYGROUND_COLOR     BLACK
-#define HIGH_SCORE_COLOR     RED
-#define CURRENT_SCORE_COLOR  BLUE
-#define SNAKE_COLOR          WHITE
-#define FOOD_COLOR           YELLOW
+#define WALL_COLOR           GREEN1
+#define PLAYGROUND_COLOR     BLACK1
+#define HIGH_SCORE_COLOR     RED1
+#define CURRENT_SCORE_COLOR  BLUE1
+#define SNAKE_COLOR          WHITE1
+#define FOOD_COLOR           YELLOW1
 
 // Show score (up to 9999) using small patterns with (x,y) as upper left corner
 void showScore(uint8_t x, uint8_t y, uint16_t score, Color color){
@@ -91,21 +91,21 @@ void showLostScreen(){
 	while(!js_getButton()){
 		switch(bm){
 			case 1:
-				color_GG = RED;
-				color_EZ = CYAN;
-				color_NOOB = YELLOW;
+				color_GG = RED1;
+				color_EZ = CYAN1;
+				color_NOOB = YELLOW1;
 				break;
 				
 			case 2:
-				color_GG = WHITE;
-				color_EZ = YELLOW;
-				color_NOOB = GREEN;
+				color_GG = WHITE1;
+				color_EZ = YELLOW1;
+				color_NOOB = GREEN1;
 				break;
 				
 			default:
-				color_GG = GREEN;
-				color_EZ = PINK;
-				color_NOOB = WHITE;
+				color_GG = GREEN1;
+				color_EZ = PINK1;
+				color_NOOB = WHITE1;
 				break;
 		}
 		bm = (bm + 1) % 3;
@@ -119,20 +119,22 @@ void showLostScreen(){
 		draw_letter('B', 17, 25, color_NOOB, true);
 		delayMs(300);
 	}
+	delayMs(1000);
 	ledSnake_startNewGame();
 }
 
 // Show pause screen
 void showPauseScreen(){
 	draw_clearDisplay();
-	draw_letter('P', 13, 2, PINK, true);
-	draw_letter('A', 13, 8, BLUE, true);
-	draw_letter('U', 13, 14, RED, true);
-	draw_letter('S', 13, 20, GREEN, true);
-	draw_letter('E', 13, 26, YELLOW, true);
+	draw_letter('P', 13, 2, PINK1, true);
+	draw_letter('A', 13, 8, BLUE1, true);
+	draw_letter('U', 13, 14, RED1, true);
+	draw_letter('S', 13, 20, GREEN1, true);
+	draw_letter('E', 13, 26, YELLOW1, true);
 	while(!js_getButton()){
 		// Wait for button to be pressed
 	}
+	delayMs(1000);
 }
 
 // Init graphic of the game
@@ -393,7 +395,7 @@ void updateGameState(){
 		}
 		updateDisplay();
 		justPaused = false;
-		delayMs(700); // Give player reaction time. Can me modified to set difficulty.
+		delayMs(400); // Give player reaction time. Can me modified to set difficulty.
 	}
 		
 }

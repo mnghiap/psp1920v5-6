@@ -39,7 +39,18 @@ void draw_setPixel(uint8_t x, uint8_t y, Color color)
 			framebuffer[i][x][y] &= 0b11111000;
 			framebuffer[i][x][y] |= tmpcolor;
 		}
-		
+		if(color.b == 0xA0) {
+			framebuffer[0][x][y] &= 0b11111011;
+			framebuffer[1][x][y] |= 0b00000100;
+		}
+		if(color.g == 0xA0) {
+			framebuffer[0][x][y] &= 0b11111101;
+			framebuffer[1][x][y] |= 0b00000010;
+		}
+		if(color.r == 0xA0) {
+			framebuffer[0][x][y] &= 0b11111110;
+			framebuffer[1][x][y] |= 0b00000001;
+		}
 	} else { // The row below
 		
 		for(uint8_t i = 0; i < 3; i++){
@@ -52,7 +63,18 @@ void draw_setPixel(uint8_t x, uint8_t y, Color color)
 			framebuffer[i][x - 16][y] &= 0b11000111;
 			framebuffer[i][x - 16][y] |= tmpcolor;
 		}
-		
+		if(color.b == 0xA0) {
+			framebuffer[0][x-16][y] &= 0b11011111;
+			framebuffer[1][x-16][y] |= 0b00100000;
+		}
+		if(color.g == 0xA0) {
+			framebuffer[0][x-16][y] &= 0b11101111;
+			framebuffer[1][x-16][y] |= 0b00010000;
+		}
+		if(color.r == 0xA0) {
+			framebuffer[0][x-16][y] &= 0b11110111;
+			framebuffer[1][x-16][y] |= 0b00001000;
+		}
 	}
 }
 

@@ -70,13 +70,13 @@ void panel_outputDisable(void) {
 
 void panel_setAddress(uint8_t rowselect) {
 	uint8_t row = (rowselect & 0b00001111);
-	PORTA &= 0b11110000;
-	PORTA |= row;//waehlt die Doppelzeile aus
+	//PORTA &= 0b11110000;
+	PORTA = 0b11110000 | row;//waehlt die Doppelzeile aus
 }
 
 void panel_setColor(uint8_t ebene, uint8_t zeile, uint8_t spalte) {//im Text heisst es setOutput aber egal...
-	PORTD &= 0b11000000;//reset
-	PORTD |= framebuffer[ebene][zeile][spalte];//gespeichertes Farbbyte zum Einlesen uebergeben
+	//PORTD &= 0b11000000;//reset
+	PORTD = framebuffer[ebene][zeile][spalte];//gespeichertes Farbbyte zum Einlesen uebergeben
 }
 
 void panel_CLK(void) {
@@ -102,7 +102,8 @@ void setLevel(void) {//fuer Flackerreduktion
 
 //! \brief ISR to refresh LED panel, trigger 1 compare match interrupts
 ISR(TIMER1_COMPA_vect) {
-    //#warning IMPLEMENT STH. HERE
+		panel_latchDisable();
+		panel_outputDisable();
 		//1. Doppelzeile auswaehlen
 		panel_setAddress(rowselect);
 		for(uint8_t i=0; i<32; i++) {//fuer 32 Spalten
@@ -115,8 +116,7 @@ ISR(TIMER1_COMPA_vect) {
 		panel_latchEnable();
 		panel_outputEnable();
 		//5. LE und OE deaktivieren
-		panel_latchDisable();
-		panel_outputDisable();
+		
 		//6. Vorbereitung fuer den naechsten ISR Aufruf
 		rowselect += 1;
 		if(rowselect == 16) {
